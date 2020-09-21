@@ -15,6 +15,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```{r}
 library(shiny)
 library(flexdashboard)
+library(DT)
 ```
 
 Input {.sidebar}
@@ -56,36 +57,39 @@ Outputs
 
 ```{r}
 
+metadata <- reactive({ 
+    data.frame(exp_name = input$exp_name, 
+               timepoint = input$timepoint,
+               plating_date = input$plating_date,
+               counting_date = input$counting_date,
+               organ = input$organ,
+               dilution_factor = input$dilution_factor,
+               resuspend_volume = input$resuspend_volume,
+               volume_plated = input$volume_plated,
+               percent_organ = input$percent_organ,
+               min_dilution_plated = input$dilutions_plated[1],
+               max_dilution_plated = input$dilutions_plated[2])
+  })
 
-
-library(DT)
 DT::renderDataTable({
-  metadata <- data.frame(exp_name = input$exp_name, 
-                     timepoint = input$timepoint,
-                     plating_date = input$plating_date,
-                     counting_date = input$counting_date,
-                     organ = input$organ,
-                     dilution_factor = input$dilution_factor,
-                     resuspend_volume = input$resuspend_volume,
-                     volume_plated = input$volume_plated,
-                     percent_organ = input$percent_organ,
-                     min_dilution_plated = input$dilutions_plated[1],
-                     max_dilution_plated = input$dilutions_plated[2])
-  DT::datatable(metadata, options = list(
-    bPaginate = FALSE
-  ))
+    metadata()
 })
 
 
+
+```
+
+
+```{r}
+
 output$metadata <- downloadHandler(
   filename = function() {
-    paste(input$exp_name, "D", input$timepoint, input$organ, "CFU", "metadata", ".csv")
+    paste0(input$exp_name, "_D", input$timepoint, "_", input$organ, "_CFU", "_metadata", ".csv")
   },
   content = function(file) {
-    write.csv(metadata, file, row.names = FALSE)
+    write.csv(metadata(), file, row.names = FALSE)
   }
 )
-
 ```
 
 
