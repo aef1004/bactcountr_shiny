@@ -1,0 +1,91 @@
+---
+title: "bactcountr Shiny App"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    social: menu
+    source_code: embed
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+library(shiny)
+library(flexdashboard)
+```
+
+Input {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+
+inputPanel(
+  textInput("exp_name", label = "Experiment Name", value = ""),
+  
+  numericInput("timepoint", label = "Timepoint in Days", value = "0"),
+  
+  dateInput("plating_date", label = "Date Plated", value = Sys.Date()),
+  
+  dateInput("counting_date", label = "Date Counted", value = Sys.Date()),
+  
+  selectInput("organ", label = "Organ", choices = c("Lung", "Spleen", "BoneMarrow", "BAL")),
+  
+  numericInput("dilution_factor", label = "Dilution Factor", value = ""),
+  
+  numericInput("resuspend_volume", label = "Resuspend Volume in mL", value = ""),
+  
+  numericInput("volume_plated", label = "Volume Plated in uL", value = ""),
+  
+  numericInput("percent_organ", label = "Percent of Organ", value = ""),
+  
+  sliderInput("dilutions_plated", label = "Dilutions Plated", min = 0, max = 10, value =c(0, 8)),
+  
+  downloadButton("metadata", "Download")
+
+)
+```
+
+
+Outputs
+-----------------------------------------------------------------------
+
+### outputs
+
+```{r}
+
+
+
+library(DT)
+DT::renderDataTable({
+  metadata <- data.frame(exp_name = input$exp_name, 
+                     timepoint = input$timepoint,
+                     plating_date = input$plating_date,
+                     counting_date = input$counting_date,
+                     organ = input$organ,
+                     dilution_factor = input$dilution_factor,
+                     resuspend_volume = input$resuspend_volume,
+                     volume_plated = input$volume_plated,
+                     percent_organ = input$percent_organ,
+                     min_dilution_plated = input$dilutions_plated[1],
+                     max_dilution_plated = input$dilutions_plated[2])
+  DT::datatable(metadata, options = list(
+    bPaginate = FALSE
+  ))
+})
+
+
+output$metadata <- downloadHandler(
+  filename = function() {
+    paste(input$exp_name, "D", input$timepoint, input$organ, "CFU", "metadata", ".csv")
+  },
+  content = function(file) {
+    write.csv(metadata, file, row.names = FALSE)
+  }
+)
+
+```
+
+
