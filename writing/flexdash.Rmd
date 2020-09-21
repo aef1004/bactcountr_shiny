@@ -53,7 +53,7 @@ inputPanel(
 Outputs
 -----------------------------------------------------------------------
 
-### outputs
+### Metadata Output
 
 ```{r}
 
@@ -90,6 +90,34 @@ output$metadata <- downloadHandler(
     write.csv(metadata(), file, row.names = FALSE)
   }
 )
+```
+
+### CFU File Output
+
+
+```{r}
+library(janitor)
+CFU_data <- reactive({ 
+  
+  all_dilutions <- c(input$dilutions_plated[1]:input$dilutions_plated[2])
+  dilution_colnames <- paste("dilution", all_dilutions, sep = "_")
+    
+  group = NA # have to do this so that the data frame can be made with empty rows
+  mouse = NA
+
+  z= c("group", "mouse", dilution_colnames)
+  
+    data.frame(z) %>%
+      t() %>%
+      row_to_names(row_number = 1)
+    
+  })
+
+
+DT::renderDataTable({
+    CFU_data()
+})
+
 ```
 
 
