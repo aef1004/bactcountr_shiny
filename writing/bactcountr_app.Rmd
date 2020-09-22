@@ -5,17 +5,50 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
+```{r message= FALSE}
+library(shiny)
+library(flexdashboard)
+library(readxl)
+library(DT)
+```
 
+Input {.sidebar}
+-----------------------------------------------------------------------
 ```{r}
 inputPanel(
-  fileInput(formatted_data, "Data Upload")
+  fileInput("formatted_data", label = "Data Upload")
 )
 ```
 
+Metadata
+-----------------------------------------------------------------------
 ```{r}
 
+metadata <- reactive({
+   read_xlsx(input$formatted_data$datapath, sheet = "metadata") %>%
+    as.data.frame()
+})
+
+DT::renderDataTable({
+    metadata()
+})
+
+```
+
+CFU Data
+-----------------------------------------------------------------------
+```{r}
+
+CFU_data <- reactive({
+   read_xlsx(input$formatted_data$datapath, sheet = "CFU_data") %>%
+    as.data.frame()
+})
+
+DT::renderDataTable({
+    CFU_data()
+})
 ```
 

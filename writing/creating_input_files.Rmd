@@ -42,7 +42,7 @@ inputPanel(
   
   numericInput("volume_plated", label = "Volume Plated in uL", value = ""),
   
-  numericInput("percent_organ", label = "Percent of Organ", value = ""),
+  numericInput("percent_organ", label = "Percent of Organ as decimal", value = ""),
   
   sliderInput("dilutions_plated", label = "Dilutions Plated", min = 0, max = 10, value =c(0, 8)),
   
