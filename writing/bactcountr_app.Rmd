@@ -13,6 +13,9 @@ library(shiny)
 library(flexdashboard)
 library(readxl)
 library(DT)
+library(bactcountr)
+library(ggpubr)
+library(dplyr)
 ```
 
 Input {.sidebar}
@@ -23,7 +26,7 @@ inputPanel(
 )
 ```
 
-Metadata
+Raw Metadata
 -----------------------------------------------------------------------
 ```{r}
 
@@ -38,17 +41,50 @@ DT::renderDataTable({
 
 ```
 
-CFU Data
+Cleaned CFU Data
 -----------------------------------------------------------------------
+**note that for now this only works if the volume plated is 100 uL
 ```{r}
 
 CFU_data <- reactive({
    read_xlsx(input$formatted_data$datapath, sheet = "CFU_data") %>%
-    as.data.frame()
+    as.data.frame()%>%
+  tidy_CFU() %>%
+  pick_one_dilution("CFUs", c("group", "mouse"))  %>%
+  calculate_cfu(dilution_factor = metadata()$dilution_factor,
+                resuspend_volume_ml = metadata()$resuspend_volume,
+                percent = metadata()$percent_organ, "dilution", "CFUs")
 })
 
 DT::renderDataTable({
     CFU_data()
 })
+```
+
+
+Plots
+-----------------------------------------------------------------------
+
+```{r}
+sig <- reactive({
+ CFU_data() %>%
+  ungroup() %>%
+  select(group, log_CFUs) %>%
+    mutate(group = as.factor(group)) %>%
+  rstatix::tukey_hsd(log_CFUs ~ group) %>%
+  rstatix::add_xy_position(x = "group")
+}) 
+
+name_of_plot <- reactive({
+  paste(metadata()$exp_name, "D", metadata()$timepoint, metadata()$organ, "CFUs")
+})
+
+renderPlot({
+  ggline(x = "group", y = "log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
+       font.label = list(size = 30, face = "plain")) +
+  stat_pvalue_manual(data = sig(), hide.ns = TRUE) +
+  ggtitle(name_of_plot())
+})
+
 ```
 
