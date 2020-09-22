@@ -16,6 +16,8 @@ knitr::opts_chunk$set(echo = FALSE)
 library(shiny)
 library(flexdashboard)
 library(DT)
+library(janitor)
+library(openxlsx)
 ```
 
 Input {.sidebar}
@@ -44,8 +46,7 @@ inputPanel(
   
   sliderInput("dilutions_plated", label = "Dilutions Plated", min = 0, max = 10, value =c(0, 8)),
   
-  downloadButton("metadata", "Download")
-
+  downloadButton("wb", "Download")
 )
 ```
 
@@ -80,23 +81,11 @@ DT::renderDataTable({
 ```
 
 
-```{r}
-
-output$metadata <- downloadHandler(
-  filename = function() {
-    paste0(input$exp_name, "_D", input$timepoint, "_", input$organ, "_CFU", "_metadata", ".csv")
-  },
-  content = function(file) {
-    write.csv(metadata(), file, row.names = FALSE)
-  }
-)
-```
-
 ### CFU File Output
 
 
 ```{r}
-library(janitor)
+
 CFU_data <- reactive({ 
   
   all_dilutions <- c(input$dilutions_plated[1]:input$dilutions_plated[2])
@@ -118,6 +107,20 @@ DT::renderDataTable({
     CFU_data()
 })
 
+```
+
+
+```{r}
+# output the excel file with both of the data structures
+output$wb <- downloadHandler(
+  filename = function() {
+    paste0(input$exp_name, "_D", input$timepoint, "_", input$organ, "_CFU", "_data", ".xlsx")
+  },
+  content = function(file) {
+    write.xlsx(list(metadata = metadata(), 
+                    CFU_data = CFU_data()), file)
+  }
+)
 ```
 
 
