@@ -13,3 +13,8 @@
 
 # To update on the website, just rerun the command:
 # rsconnect::deployApp("./writing/creating_input_files.Rmd")
+
+
+
+# this has info on pulling in choices from inputs
+# https://stackoverflow.com/questions/34929206/r-shiny-selectinput-that-is-dependent-on-another-selectinput

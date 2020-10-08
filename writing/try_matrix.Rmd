@@ -1,15 +1,11 @@
 ---
-title: "bactcountr Shiny App"
-output: 
-  flexdashboard::flex_dashboard:
-    orientation: columns
-    social: menu
-    source_code: embed
+title: "try_matrix"
 runtime: shiny
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
@@ -18,6 +14,7 @@ library(flexdashboard)
 library(DT)
 library(janitor)
 library(openxlsx)
+library(shinyMatrix)
 ```
 
 Input {.sidebar}
@@ -72,56 +69,22 @@ metadata <- reactive({
                max_dilution_plated = input$dilutions_plated[2])
   })
 
-DT::renderDataTable({
-    metadata()
-})
+m <- matrix(runif(12), 6, 2, dimnames = list(NULL, c("x", "y")))
 
-
-
-```
-
-
-### CFU File Output
-
-
-```{r}
-
-CFU_data <- reactive({ 
-  
-  all_dilutions <- c(input$dilutions_plated[1]:input$dilutions_plated[2])
-  dilution_colnames <- paste("dilution", all_dilutions, sep = "_")
-    
-  group = NA # have to do this so that the data frame can be made with empty rows
-  mouse = NA
-
-  z= c("group", "mouse", dilution_colnames)
-  
-    data.frame(z) %>%
-      t() %>%
-      row_to_names(row_number = 1)
-    
-  })
-
-
-DT::renderDataTable({
-    CFU_data()
-})
-
-```
-
-
-```{r}
-# output the excel file with both of the data structures
-output$wb <- downloadHandler(
-  filename = function() {
-    paste0(input$exp_name, "_D", input$timepoint, "_", input$organ, "_CFU", "_data", ".xlsx")
-  },
-  content = function(file) {
-    write.xlsx(list(metadata = metadata(), 
-                    CFU_data = CFU_data()), file)
-  }
+matrixInput(
+  inputId = "sample", 
+  value = m,
+  #inputClass = matrix-input,
+  rows = list(extend = TRUE), 
+  cols = list(names = TRUE),
+  class = "numeric",
+  paste = TRUE,
+  copy = TRUE
 )
+
+
+renderPlot({
+  plot(input$sample, col = "red", main = "Scatterplot")
+})
+
 ```
-
-
-
