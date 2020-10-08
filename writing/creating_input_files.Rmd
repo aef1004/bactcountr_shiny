@@ -102,9 +102,9 @@ CFU_data <- reactive({
     
   })
 
-
+library(shinyMatrix)
 DT::renderDataTable({
-    CFU_data()
+    CFU_data(), "all"
 })
 
 ```
@@ -124,4 +124,8 @@ output$wb <- downloadHandler(
 ```
 
 
+
+```{r}
+
+```
 

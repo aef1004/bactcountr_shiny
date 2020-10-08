@@ -9,7 +9,14 @@
 
 library("shiny")
 library("shinyMatrix")
+library("DT")
+library(janitor)
 
+df <- data.frame(matrix(c("0","0"), 1, 2))
+
+render_dt = function(data, editable = 'cell', server = TRUE, ...) {
+    renderDT(data, selection = 'none', server = server, editable = editable, ...)
+}
 
 
 ui <- fluidPage(
@@ -34,25 +41,19 @@ ui <- fluidPage(
                  
                  numericInput("percent_organ", label = "Percent of Organ as decimal", value = ""),
                  
-                 sliderInput("dilutions_plated", label = "Dilutions Plated", min = 0, max = 10, value =c(0, 8)),
+                 sliderInput("dilutions_plated", label = "Dilutions Plated", min = 0, max = 10, value =c(0, 7)),
                  ),
     
-    textOutput("dilution_names"),
-
+    textOutput("column_names"),
+    textOutput("ncolumns"),
+    
     sidebarPanel(
         width = 6,
         tags$h4("CFU Data Input"),
-        matrixInput(
-            "cfu_data",
-            value = matrix(runif(12), 6, 2, dimnames = list(NULL, c("Group", "Replicate"))),
-            rows = list( 
-                extend = TRUE
-            ),
-            cols = list(
-                names = TRUE
-            )
-        )
+        sidebarPanel(DTOutput('x4')),
     ),
+    
+    
     mainPanel(
         width = 6,
         plotOutput("scatter")
@@ -60,12 +61,32 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-    output$dilution_names <- renderText(paste("dilution", c(input$dilutions_plated[1]:input$dilutions_plated[2]), sep = "_"))
     
     output$scatter <- renderPlot({
         
         plot(input$cfu_data, col = "red", main = "Scatterplot")
     })
+    
+    data_for_CFUs <- reactive({
+        #column_names <- renderText(c("Group", "Replicate", paste("dilution", c(input$dilutions_plated[1]:input$dilutions_plated[2]), sep = "_")))
+        column_names <- c("Group", "Replicate", paste("dilution", c(input$dilutions_plated[1]:input$dilutions_plated[2]), sep = "_"))
+        ncolumns <- length(c(input$dilutions_plated[1]:input$dilutions_plated[2])) + 2
+
+        data.frame(matrix(vector(), 50, length(column_names),
+                                dimnames=list(c(), column_names)),
+                         stringsAsFactors=F)
+        
+        
+       # data.frame(column_names) %>%
+       #      t() %>%
+       #      row_to_names(row_number = 1)
+
+    })
+    
+    
+    output$x4 <- render_dt(data_for_CFUs(), 'all', FALSE)
+    #observe(str(input$x4_cell_edit))
+
 }
 
 shinyApp(ui, server)
