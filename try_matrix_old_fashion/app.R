@@ -43,9 +43,7 @@ ui <- fluidPage(
                  
                  sliderInput("dilutions_plated", label = "Dilutions Plated", min = 0, max = 10, value =c(0, 7)),
                  ),
-    
-    textOutput("column_names"),
-    textOutput("ncolumns"),
+
     
     sidebarPanel(
         width = 6,
@@ -67,19 +65,25 @@ server <- function(input, output, session) {
         plot(input$cfu_data, col = "red", main = "Scatterplot")
     })
     
+    column_names <- reactive({
+        c("Group", "Replicate", paste("dilution", c(input$dilutions_plated[1]:input$dilutions_plated[2]), sep = "_"))
+    })
+    
     data_for_CFUs <- reactive({
         #column_names <- renderText(c("Group", "Replicate", paste("dilution", c(input$dilutions_plated[1]:input$dilutions_plated[2]), sep = "_")))
-        column_names <- c("Group", "Replicate", paste("dilution", c(input$dilutions_plated[1]:input$dilutions_plated[2]), sep = "_"))
-        ncolumns <- length(c(input$dilutions_plated[1]:input$dilutions_plated[2])) + 2
+        #ncolumns <- length(c(input$dilutions_plated[1]:input$dilutions_plated[2])) + 2
+        
+        all_dilutions <- c(input$dilutions_plated[1]:input$dilutions_plated[2])
+        dilution_colnames <- paste("dilution", all_dilutions, sep = "_")
+        
+        group = NA # have to do this so that the data frame can be made with empty rows
+        mouse = NA
+        
+        z= c("group", "mouse", dilution_colnames)
 
-        data.frame(matrix(vector(), 50, length(column_names),
-                                dimnames=list(c(), column_names)),
+        data.frame(matrix(vector(), 50, length(z),
+                                dimnames=list(c(), z)),
                          stringsAsFactors=F)
-        
-        
-       # data.frame(column_names) %>%
-       #      t() %>%
-       #      row_to_names(row_number = 1)
 
     })
     

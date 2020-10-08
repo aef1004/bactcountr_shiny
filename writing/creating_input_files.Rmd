@@ -95,17 +95,15 @@ CFU_data <- reactive({
   mouse = NA
 
   z= c("group", "mouse", dilution_colnames)
-  
-    data.frame(z) %>%
-      t() %>%
-      row_to_names(row_number = 1)
+    
+  data.frame(matrix(vector(), 50, length(z),
+                    dimnames=list(c(), z)),
+                    stringsAsFactors=F)
     
   })
 
-library(shinyMatrix)
-DT::renderDataTable({
-    CFU_data(), "all"
-})
+
+DT::renderDT(CFU_data(), selection ='none', server = TRUE, editable = 'all')
 
 ```
 
@@ -123,9 +121,4 @@ output$wb <- downloadHandler(
 )
 ```
 
-
-
-```{r}
-
-```
 
