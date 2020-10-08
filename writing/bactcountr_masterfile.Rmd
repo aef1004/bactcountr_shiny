@@ -7,10 +7,19 @@ output:
     source_code: embed
 runtime: shiny
 ---
-Goal is to combine the creating_input_files and the bactcountr_app into one
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 ```
+
+```{r}
+# Notes
+
+# Goal is to combine the creating_input_files and the bactcountr_app into one
+
+# **May want to add in an option to upload a file as well
+```
+
 
 ```{r}
 library(shiny)
@@ -23,6 +32,8 @@ library(ggpubr)
 library(dplyr)
 ```
 
+Raw Data
+=====================================
 Input {.sidebar}
 -----------------------------------------------------------------------
 
@@ -99,14 +110,21 @@ CFU_data <- reactive({
 
   z= c("group", "mouse", dilution_colnames)
     
-  data.frame(matrix(vector(), 50, length(z),
+  CFU_df <- data.frame(matrix(vector(), 50, length(z),
                     dimnames=list(c(), z)),
                     stringsAsFactors=F)
+  
+  CFU_df
     
   })
 
 
-DT::renderDT(CFU_data(), selection ='none', server = TRUE, editable = 'all')
+output$table <- DT::renderDT(CFU_data(), selection ='none', server = TRUE, editable = 'all', rownames = FALSE)
+
+DTOutput("table")
+
+observe(str(input$table_cell_edit))
+
 
 ```
 
@@ -125,17 +143,24 @@ output$wb <- downloadHandler(
 ```
 
 Cleaned CFU Data
+=====================================
+Cleaned CFU Data 
 -----------------------------------------------------------------------
 **note that for now this only works if the volume plated is 100 uL
 ```{r}
 
 clean_CFU_data <- reactive({
-   CFU_data()
-  tidy_CFU() %>%
-  pick_one_dilution("CFUs", c("group", "mouse"))  %>%
-  calculate_cfu(dilution_factor = metadata()$dilution_factor,
-                resuspend_volume_ml = metadata()$resuspend_volume,
-                percent = metadata()$percent_organ, "dilution", "CFUs")
+   input$table_cell_edit
+  
+  # observe(str(input$table_cell_edit))
+  
+  
+  #CFU_data()
+  # tidy_CFU() %>%
+  # pick_one_dilution("CFUs", c("group", "mouse"))  %>%
+  # calculate_cfu(dilution_factor = metadata()$dilution_factor,
+  #               resuspend_volume_ml = metadata()$resuspend_volume,
+  #               percent = metadata()$percent_organ, "dilution", "CFUs")
 })
 
 DT::renderDataTable({

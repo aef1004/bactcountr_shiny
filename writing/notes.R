@@ -18,3 +18,6 @@
 
 # this has info on pulling in choices from inputs
 # https://stackoverflow.com/questions/34929206/r-shiny-selectinput-that-is-dependent-on-another-selectinput
+
+# working with DT table and savng the data
+#https://stackoverflow.com/questions/56535488/how-to-download-editable-data-table-in-shiny

@@ -103,7 +103,9 @@ CFU_data <- reactive({
   })
 
 
-DT::renderDT(CFU_data(), selection ='none', server = TRUE, editable = 'all')
+output[["table"]] <- DT::renderDT(CFU_data(), selection ='none', server = TRUE, editable = 'all')
+DTOutput("table")
+
 
 ```
 
