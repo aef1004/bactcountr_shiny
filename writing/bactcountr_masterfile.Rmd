@@ -1,0 +1,173 @@
+---
+title: "bactcountr Masterfile"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    social: menu
+    source_code: embed
+runtime: shiny
+---
+Goal is to combine the creating_input_files and the bactcountr_app into one
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+library(shiny)
+library(flexdashboard)
+library(DT)
+library(janitor)
+library(openxlsx)
+library(bactcountr)
+library(ggpubr)
+library(dplyr)
+```
+
+Input {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+
+inputPanel(
+  textInput("exp_name", label = "Experiment Name", value = ""),
+  
+  numericInput("timepoint", label = "Timepoint in Days", value = "0"),
+  
+  dateInput("plating_date", label = "Date Plated", value = Sys.Date()),
+  
+  dateInput("counting_date", label = "Date Counted", value = Sys.Date()),
+  
+  selectInput("organ", label = "Organ", choices = c("Lung", "Spleen", "BoneMarrow", "BAL")),
+  
+  numericInput("dilution_factor", label = "Dilution Factor", value = ""),
+  
+  numericInput("resuspend_volume", label = "Resuspend Volume in mL", value = ""),
+  
+  numericInput("volume_plated", label = "Volume Plated in uL", value = ""),
+  
+  numericInput("percent_organ", label = "Percent of Organ as decimal", value = ""),
+  
+  sliderInput("dilutions_plated", label = "Dilutions Plated", min = 0, max = 10, value =c(0, 8)),
+  
+  downloadButton("wb", "Download")
+)
+```
+
+
+Outputs
+-----------------------------------------------------------------------
+
+### Metadata Output
+
+```{r}
+
+metadata <- reactive({ 
+    data.frame(exp_name = input$exp_name, 
+               timepoint = input$timepoint,
+               plating_date = input$plating_date,
+               counting_date = input$counting_date,
+               organ = input$organ,
+               dilution_factor = input$dilution_factor,
+               resuspend_volume = input$resuspend_volume,
+               volume_plated = input$volume_plated,
+               percent_organ = input$percent_organ,
+               min_dilution_plated = input$dilutions_plated[1],
+               max_dilution_plated = input$dilutions_plated[2])
+  })
+
+DT::renderDataTable({
+    metadata()
+})
+
+
+
+```
+
+
+### CFU File Output
+
+
+```{r}
+
+CFU_data <- reactive({ 
+  
+  all_dilutions <- c(input$dilutions_plated[1]:input$dilutions_plated[2])
+  dilution_colnames <- paste("dilution", all_dilutions, sep = "_")
+    
+  group = NA # have to do this so that the data frame can be made with empty rows
+  mouse = NA
+
+  z= c("group", "mouse", dilution_colnames)
+    
+  data.frame(matrix(vector(), 50, length(z),
+                    dimnames=list(c(), z)),
+                    stringsAsFactors=F)
+    
+  })
+
+
+DT::renderDT(CFU_data(), selection ='none', server = TRUE, editable = 'all')
+
+```
+
+
+```{r}
+# output the excel file with both of the data structures
+output$wb <- downloadHandler(
+  filename = function() {
+    paste0(input$exp_name, "_D", input$timepoint, "_", input$organ, "_CFU", "_data", ".xlsx")
+  },
+  content = function(file) {
+    write.xlsx(list(metadata = metadata(), 
+                    CFU_data = CFU_data()), file)
+  }
+)
+```
+
+Cleaned CFU Data
+-----------------------------------------------------------------------
+**note that for now this only works if the volume plated is 100 uL
+```{r}
+
+clean_CFU_data <- reactive({
+   CFU_data()
+  tidy_CFU() %>%
+  pick_one_dilution("CFUs", c("group", "mouse"))  %>%
+  calculate_cfu(dilution_factor = metadata()$dilution_factor,
+                resuspend_volume_ml = metadata()$resuspend_volume,
+                percent = metadata()$percent_organ, "dilution", "CFUs")
+})
+
+DT::renderDataTable({
+    clean_CFU_data()
+})
+```
+
+
+Plots
+-----------------------------------------------------------------------
+
+```{r}
+# sig <- reactive({
+#  clean_CFU_data() %>%
+#   ungroup() %>%
+#   select(group, log_CFUs) %>%
+#     mutate(group = as.factor(group)) %>%
+#   rstatix::tukey_hsd(log_CFUs ~ group) %>%
+#   rstatix::add_xy_position(x = "group")
+# }) 
+# 
+# name_of_plot <- reactive({
+#   paste(metadata()$exp_name, "D", metadata()$timepoint, metadata()$organ, "CFUs")
+# })
+# 
+# renderPlot({
+#   ggline(x = "group", y = "log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
+#        font.label = list(size = 30, face = "plain")) +
+#   stat_pvalue_manual(data = sig(), hide.ns = TRUE) +
+#   ggtitle(name_of_plot())
+# })
+
+```
+
+
