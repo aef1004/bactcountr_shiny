@@ -34,6 +34,9 @@ inputPanel(
   
   dateInput("counting_date", label = "Date Counted", value = Sys.Date()),
   
+  selectInput("experiment_type", label = "Experiment Type", choices = c("in vitro", 
+                                                                        "in vivo")),
+  
   selectInput("organ", label = "Organ", choices = c("Lung", "Spleen", "BoneMarrow", "BAL")),
   
   numericInput("dilution_factor", label = "Dilution Factor", value = ""),
@@ -92,9 +95,9 @@ CFU_data <- reactive({
   dilution_colnames <- paste("dilution", all_dilutions, sep = "_")
     
   group = NA # have to do this so that the data frame can be made with empty rows
-  mouse = NA
+  replicate = NA
 
-  z= c("group", "mouse", dilution_colnames)
+  z= c("group", "replicate", dilution_colnames)
     
   data.frame(matrix(vector(), 50, length(z),
                     dimnames=list(c(), z)),
