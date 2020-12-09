@@ -121,10 +121,14 @@ CFU_data <- reactive({
 
 output$table <- DT::renderDT(CFU_data(), selection ='none', server = TRUE, editable = 'all', rownames = FALSE)
 
+proxy <- dataTableProxy("table")
+
+observeEvent(input$table_cell_edit,{
+  info = input$table_cell_edit
+  replaceData(proxy, x, resetPaging = FLASE)
+})
+
 DTOutput("table")
-
-observe(str(input$table_cell_edit))
-
 
 ```
 
@@ -150,7 +154,7 @@ Cleaned CFU Data
 ```{r}
 
 clean_CFU_data <- reactive({
-   input$table_cell_edit
+   CFU_data()
   
   # observe(str(input$table_cell_edit))
   

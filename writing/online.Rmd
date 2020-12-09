@@ -1,0 +1,114 @@
+---
+title: "Editable DT Flexdashboard"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r global, include=FALSE}
+# This block loads in packages and the data for this sample problem
+
+library(DT)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(magrittr)
+library(flexdashboard)
+options(shiny.sanitize.errors=FALSE)
+
+df <-
+structure(list(Week = structure(c(17700, 17700, 17700, 17700, 
+17700, 17700, 17707, 17707, 17707, 17707, 17707, 17707, 17714, 
+17714, 17714, 17714, 17714, 17714, 17721, 17721, 17721, 17721, 
+17721, 17721, 17728, 17728, 17728, 17728, 17728, 17728, 17735, 
+17735, 17735, 17735, 17735, 17735, 17742, 17742, 17742, 17742, 
+17742, 17742, 17749, 17749, 17749, 17749, 17749, 17749, 17756, 
+17756, 17756, 17756, 17756, 17756), class = "Date"), Topic = c("Cooking", 
+"Stamp Collecting", "Work", "Sales", "Stamp Repair", "Personal", 
+"Cooking", "Stamp Collecting", "Work", "Sales", "Stamp Repair", 
+"Personal", "Cooking", "Stamp Collecting", "Work", "Sales", "Stamp Repair", 
+"Personal", "Cooking", "Stamp Collecting", "Work", "Sales", "Stamp Repair", 
+"Personal", "Cooking", "Stamp Collecting", "Work", "Sales", "Stamp Repair", 
+"Personal", "Cooking", "Stamp Collecting", "Work", "Sales", "Stamp Repair", 
+"Personal", "Cooking", "Stamp Collecting", "Work", "Sales", "Stamp Repair", 
+"Personal", "Cooking", "Stamp Collecting", "Work", "Sales", "Stamp Repair", 
+"Personal", "Cooking", "Stamp Collecting", "Work", "Sales", "Stamp Repair", 
+"Personal"), Percent = c("40", "40", "20", "0", "0", "0", "40", 
+"30", "20", "5", "5", "0", "20", "50", "15", "5", "10", "0", 
+"20", "40", "30", "5", "5", "0", "20", "50", "20", "0", "10", 
+"0", "0", "40", "30", "20", "5", "5", "40", "40", "20", "0", 
+"0", "0", "0", "40", "30", "20", "5", "5", "40", "40", "20", 
+"0", "0", "0")), .Names = c("Week", "Topic", "Percent"), row.names = c(NA, 
+-54L), class = c("tbl_df", "tbl", "data.frame"))
+```
+
+```{r, include = FALSE}
+# This block helped previous DTs not be invisible, and I am afraid to take it out
+DT::datatable(data.frame(x=1))
+```
+
+Sidebar {.sidebar}
+=====================================
+
+## Steps:
+1. Filter DT by input$Topic. Pick "Stamp".
+2. Edit filtered table on the screen -- make at least two edits on first page, one edit on second.
+3. Save updated dataframe as XLS or CSV.
+
+```{r}
+selectInput("Topic", label = "Topic:", 
+     choices = c("ALL", "Stamp", "Cooking", "Work", "Personal") )
+```
+
+
+Main Tab Title
+===================================== 
+
+Row {.tabset} 
+-------------------------------------
+
+### Editable Table
+
+```{r echo=FALSE}
+library(tibble)
+library(DT)
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+
+# make a copy of the data frame for use within the reactive
+# (helps prevent accidentally overwriting df when there are multiple code chunks)
+this.df <- df
+
+# Filter the data frame so that the results can be presented in the DT
+x <- reactive({
+  if (input$Topic == "Stamp") {
+       this.df %>% filter(grepl("stamp", Topic, ignore.case=TRUE)) 
+  } else {
+     if (input$Topic != "ALL") {
+        this.df %>% filter(Topic %in% input$Topic)
+     } else {
+        this.df
+     }
+  }
+})
+
+# Store the data frame produced by the reactive x() to x1
+output$x1 = renderDT(x(), selection="none", rownames=F, editable=T)
+
+# Here is the code from Part 4 of https://github.com/rstudio/DT/pull/480:
+proxy <- dataTableProxy('x1')
+observeEvent(input$x1_cell_edit, {
+  info = input$x1_cell_edit
+      str(info)
+      i = info$row
+      j = info$col + 1  # column index offset by 1
+      v = info$value
+  x[i, j] <<- DT::coerceValue(v, x[i, j])
+  replaceData(proxy, x, resetPaging=FALSE, rownames=FALSE)
+})
+
+DTOutput("x1")
+```
