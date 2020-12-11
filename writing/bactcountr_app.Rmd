@@ -1,34 +1,41 @@
 ---
-title: "bactcountr_app"
+title: "bactcountr"
 runtime: shiny
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, error = FALSE)
+knitr::opts_chunk$set(echo = FALSE, error = FALSE, warning = FALSE)
 ```
 
 ```{r message= FALSE}
 library(shiny)
+library(openxlsx)
 library(flexdashboard)
 library(readxl)
 library(DT)
 library(bactcountr)
 library(ggpubr)
 library(dplyr)
+library(rstatix)
 ```
 
 Input {.sidebar}
 -----------------------------------------------------------------------
 ```{r}
 inputPanel(
-  fileInput("formatted_data", label = "Data Upload")
+  fileInput("formatted_data", label = "Data Upload"),
+  
+  selectInput("stat_analysis", label = "Statistical Analysis", 
+              choices = c("none", "t test", "Anova and Tukey HSD"))
 )
+
+
 ```
 
 Raw Metadata
 -----------------------------------------------------------------------
-```{r}
+```{r error = FALSE, message = FALSE, warning = FALSE}
 
 metadata <- reactive({
    read_xlsx(input$formatted_data$datapath, sheet = "metadata") %>%
@@ -43,22 +50,38 @@ DT::renderDataTable({
 
 Cleaned CFU Data
 -----------------------------------------------------------------------
-**note that for now this only works if the volume plated is 100 uL
 ```{r}
 
 CFU_data <- reactive({
    read_xlsx(input$formatted_data$datapath, sheet = "CFU_data") %>%
     as.data.frame()%>%
   tidy_CFU() %>%
-  pick_one_dilution("CFUs", c("group", "mouse"))  %>%
+  pick_one_dilution("CFUs", c("group", "replicate"))  %>%
   calculate_cfu(dilution_factor = metadata()$dilution_factor,
-                resuspend_volume_ml = metadata()$resuspend_volume,
-                percent = metadata()$percent_organ, "dilution", "CFUs")
+                resuspend_volume_ml = metadata()$resuspend_volume, 
+                volume_plated_uL = metadata()$volume_plated,
+                percent = metadata()$percent_organ, "dilution", "CFUs") 
 })
 
 DT::renderDataTable({
     CFU_data()
 })
+
+inputPanel(
+  downloadButton("wb", "Download Cleaned Data")
+)
+
+
+# output the excel file with both of the data structures
+output$wb <- downloadHandler(
+  filename = function() {
+    paste0("cleaned_CFU", "_data", ".xlsx")
+  },
+  content = function(file) {
+    write.xlsx(list(metat_data = metadata(),
+                    CFU_data = CFU_data()), file)
+  }
+)
 ```
 
 
@@ -66,7 +89,7 @@ Plots
 -----------------------------------------------------------------------
 
 ```{r}
-sig <- reactive({
+tukey_sig <- reactive({
  CFU_data() %>%
   ungroup() %>%
   select(group, log_CFUs) %>%
@@ -75,16 +98,52 @@ sig <- reactive({
   rstatix::add_xy_position(x = "group")
 }) 
 
+t_sig <- reactive({
+  CFU_data() %>%
+  ungroup() %>%
+  t_test(log_CFUs ~ group) %>% #   adjust_pvalue(method = "BH") %>%
+  add_significance() %>%
+  rstatix::add_xy_position(x = "group")
+  })
+
+
+
 name_of_plot <- reactive({
   paste(metadata()$exp_name, "D", metadata()$timepoint, metadata()$organ, "CFUs")
 })
 
-renderPlot({
+
+uiOutput("dynamic")
+
+output$dynamic <- renderUI({
+  if(input$stat_analysis == "Anova and Tukey HSD"){
+    plotOutput("anova_plot")}
+    else if (input$stat_analysis == "none"){
+      plotOutput("plot")}
+  else{plotOutput("t_plot")}
+  })
+
+#  no stats
+output$plot <- renderPlot({
   ggline(x = "group", y = "log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
        font.label = list(size = 30, face = "plain")) +
-  stat_pvalue_manual(data = sig(), hide.ns = TRUE) +
-  ggtitle(name_of_plot())
+  ggtitle(paste("No stats", name_of_plot()))
 })
 
+# t-test
+output$t_plot <- renderPlot({
+  ggline(x = "group", y = "log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
+       font.label = list(size = 30, face = "plain")) +
+      stat_pvalue_manual(data = t_sig(), hide.ns = TRUE) +
+    ggtitle(paste("T-test", name_of_plot()))
+})
+
+# Anova and Tukey HSD
+output$anova_plot <- renderPlot({
+  ggline(x = "group", y = "log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
+       font.label = list(size = 30, face = "plain")) +
+  stat_pvalue_manual(data = tukey_sig(), hide.ns = TRUE) +
+  ggtitle(paste("Anova and Tukey", name_of_plot()))
+})
 ```
 
