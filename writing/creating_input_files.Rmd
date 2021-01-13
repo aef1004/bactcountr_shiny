@@ -35,10 +35,8 @@ inputPanel(
   
   dateInput("counting_date", label = "Date Counted", value = Sys.Date()),
   
-  selectInput("experiment_type", label = "Experiment Type", choices = c("in vitro", 
-                                                                        "in vivo")),
-  
-  selectInput("organ", label = "Organ", choices = c("Lung", "Spleen", "BoneMarrow", "BAL")),
+  selectInput("sample_type", label = "Sample Type", choices = c("Culture","Lung", "Spleen",
+                                                                "BoneMarrow", "BAL")),
   
   numericInput("dilution_factor", label = "Dilution Factor", value = ""),
   
@@ -48,7 +46,8 @@ inputPanel(
   
   numericInput("percent_organ", label = "Percent of Organ as decimal", value = ""),
   
-  sliderInput("dilutions_plated", label = "Dilutions Plated", min = 0, max = 10, value =c(0, 8)),
+  sliderInput("dilutions_plated", label = "Dilutions Plated", min = 0, max = 11, 
+              value =c(0, 7)),
   
   downloadButton("wb", "Download")
 )
@@ -67,7 +66,7 @@ metadata <- reactive({
                timepoint = input$timepoint,
                plating_date = input$plating_date,
                counting_date = input$counting_date,
-               organ = input$organ,
+               sample_type = input$sample_type,
                dilution_factor = input$dilution_factor,
                resuspend_volume = input$resuspend_volume,
                volume_plated = input$volume_plated,
@@ -118,7 +117,7 @@ DTOutput("table")
 # output the excel file with both of the data structures
 output$wb <- downloadHandler(
   filename = function() {
-    paste0(input$exp_name, "_D", input$timepoint, "_", input$organ, "_CFU", "_data", ".xlsx")
+    paste0(input$exp_name, "_D", input$timepoint, "_", input$sample_type, "_CFU", "_data", ".xlsx")
   },
   content = function(file) {
     write.xlsx(list(metadata = metadata(), 

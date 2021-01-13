@@ -109,7 +109,7 @@ t_sig <- reactive({
 
 
 name_of_plot <- reactive({
-  paste(metadata()$exp_name, "D", metadata()$timepoint, metadata()$organ, "CFUs")
+  paste(metadata()$exp_name, "D", metadata()$timepoint, metadata()$sample_type, "CFUs")
 })
 
 
