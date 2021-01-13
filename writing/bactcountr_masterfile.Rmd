@@ -119,7 +119,8 @@ CFU_data <- reactive({
   })
 
 
-output$table <- DT::renderDT(CFU_data(), selection ='none', server = TRUE, editable = 'all', rownames = FALSE)
+output$table <- DT::renderDT(CFU_data(), selection ='none', server = TRUE, 
+                             editable = 'all', rownames = FALSE)
 
 proxy <- dataTableProxy("table")
 
