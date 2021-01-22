@@ -9,6 +9,9 @@ knitr::opts_chunk$set(echo = FALSE, error = FALSE, warning = FALSE)
 ```
 
 ```{r message= FALSE}
+library(devtools)
+devtools::install_github("aef1004/bactcountr")
+
 library(shiny)
 library(openxlsx)
 library(flexdashboard)
@@ -18,8 +21,6 @@ library(bactcountr)
 library(ggpubr)
 library(dplyr)
 library(rstatix)
-library(devtools)
-
 ```
 
 Input {.sidebar}
