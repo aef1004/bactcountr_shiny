@@ -18,6 +18,8 @@ library(bactcountr)
 library(ggpubr)
 library(dplyr)
 library(rstatix)
+library(devtools)
+
 ```
 
 Input {.sidebar}
