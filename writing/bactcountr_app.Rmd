@@ -27,10 +27,7 @@ Input {.sidebar}
 -----------------------------------------------------------------------
 ```{r}
 inputPanel(
-  fileInput("formatted_data", label = "Data Upload"),
-  
-  selectInput("stat_analysis", label = "Statistical Analysis", 
-              choices = c("none", "t test", "Anova and Tukey HSD"))
+  fileInput("formatted_data", label = "Data Upload")
 )
 
 
@@ -54,16 +51,34 @@ DT::renderDataTable({
 Cleaned CFU Data
 -----------------------------------------------------------------------
 ```{r}
+# Use this one with the pick_dilution
 
+# CFU_data <- reactive({
+#    read_xlsx(input$formatted_data$datapath, sheet = "CFU_data") %>%
+#     as.data.frame()%>%
+#   tidy_CFU() %>%
+#   pick_one_dilution("CFUs", c("group", "replicate"))  %>%
+#   calculate_cfu(dilution_factor = metadata()$dilution_factor,
+#                 resuspend_volume_ml = metadata()$resuspend_volume, 
+#                 volume_plated_uL = metadata()$volume_plated,
+#                 percent = metadata()$percent_organ, "dilution", "CFUs") 
+# })
+
+# this one is for finding the average of groups
 CFU_data <- reactive({
    read_xlsx(input$formatted_data$datapath, sheet = "CFU_data") %>%
     as.data.frame()%>%
   tidy_CFU() %>%
-  pick_one_dilution("CFUs", c("group", "replicate"))  %>%
   calculate_cfu(dilution_factor = metadata()$dilution_factor,
                 resuspend_volume_ml = metadata()$resuspend_volume, 
                 volume_plated_uL = metadata()$volume_plated,
-                percent = metadata()$percent_organ, "dilution", "CFUs") 
+                percent = metadata()$percent_organ, "dilution", "CFUs") %>%
+    select(-log_CFUs) %>%
+  filter(CFUs != 0) %>%
+  group_by(group, replicate) %>%
+  mutate(average_log_CFUs = log10(mean(whole_CFUs))) %>%
+    arrange(group, replicate) %>%
+    ungroup()
 })
 
 DT::renderDataTable({
@@ -87,24 +102,61 @@ output$wb <- downloadHandler(
 )
 ```
 
+Group Averages
+-----------------------------------------------------------------------
+```{r}
+group_data <- reactive({
+   CFU_data() %>%
+    select(group, whole_CFUs) %>%
+    group_by(group) %>%
+      mutate(average_log_CFUs = log10(mean(whole_CFUs))) %>%
+    select(-whole_CFUs) %>%
+      unique()
+    
+})
+
+DT::renderDataTable({
+    group_data()
+})
+
+ inputPanel(
+   downloadButton("gpdata", "Download Group Averages")
+ ) 
+ 
+ #output the excel file with both of the data structures
+ output$gpdata <- downloadHandler(
+   filename = function() {
+     paste0("group_averages", ".xlsx")
+   },
+   content = function(file) {
+     write.xlsx(group_data(), file)
+   }
+ )
+```
 
 Plots
 -----------------------------------------------------------------------
 
 ```{r}
+inputPanel(
+  selectInput("stat_analysis", label = "Statistical Analysis", 
+              choices = c("none", "t test", "Anova and Tukey HSD"))
+)
+
+
 tukey_sig <- reactive({
  CFU_data() %>%
   ungroup() %>%
-  select(group, log_CFUs) %>%
+  select(group, average_log_CFUs) %>%
     mutate(group = as.factor(group)) %>%
-  rstatix::tukey_hsd(log_CFUs ~ group) %>%
+  rstatix::tukey_hsd(average_log_CFUs ~ group) %>%
   rstatix::add_xy_position(x = "group")
 }) 
 
 t_sig <- reactive({
   CFU_data() %>%
   ungroup() %>%
-  t_test(log_CFUs ~ group) %>% #   adjust_pvalue(method = "BH") %>%
+  t_test(average_log_CFUs ~ group) %>% #   adjust_pvalue(method = "BH") %>%
   add_significance() %>%
   rstatix::add_xy_position(x = "group")
   })
@@ -128,14 +180,14 @@ output$dynamic <- renderUI({
 
 #  no stats
 output$plot <- renderPlot({
-  ggline(x = "group", y = "log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
+  ggline(x = "group", y = "average_log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
        font.label = list(size = 30, face = "plain")) +
   ggtitle(paste("No stats", name_of_plot()))
 })
 
 # t-test
 output$t_plot <- renderPlot({
-  ggline(x = "group", y = "log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
+  ggline(x = "group", y = "average_log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
        font.label = list(size = 30, face = "plain")) +
       stat_pvalue_manual(data = t_sig(), hide.ns = TRUE) +
     ggtitle(paste("T-test", name_of_plot()))
@@ -143,7 +195,7 @@ output$t_plot <- renderPlot({
 
 # Anova and Tukey HSD
 output$anova_plot <- renderPlot({
-  ggline(x = "group", y = "log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
+  ggline(x = "group", y = "average_log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
        font.label = list(size = 30, face = "plain")) +
   stat_pvalue_manual(data = tukey_sig(), hide.ns = TRUE) +
   ggtitle(paste("Anova and Tukey", name_of_plot()))
