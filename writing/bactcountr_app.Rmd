@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = FALSE, error = FALSE, warning = FALSE)
 
 ```{r message= FALSE}
 library(devtools)
-devtools::install_github("aef1004/bactcountr")
+#devtools::install_github("aef1004/bactcountr")
 
 library(shiny)
 library(openxlsx)
@@ -21,6 +21,7 @@ library(bactcountr)
 library(ggpubr)
 library(dplyr)
 library(rstatix)
+library(tidyr)
 ```
 
 Input {.sidebar}
@@ -76,7 +77,10 @@ CFU_data <- reactive({
     select(-log_CFUs) %>%
   filter(CFUs != 0) %>%
   group_by(group, replicate) %>%
-  mutate(average_log_CFUs = log10(mean(whole_CFUs))) %>%
+  mutate(log_CFUs = log10(whole_CFUs),
+         average_log_CFUs = log10(mean(whole_CFUs)),
+         variance = log10(var(whole_CFUs)),
+         standard_deviation = log10(sd(whole_CFUs))) %>%
     arrange(group, replicate) %>%
     ungroup()
 })
@@ -109,7 +113,9 @@ group_data <- reactive({
    CFU_data() %>%
     select(group, whole_CFUs) %>%
     group_by(group) %>%
-      mutate(average_log_CFUs = log10(mean(whole_CFUs))) %>%
+      mutate(average_log_CFUs = log10(mean(whole_CFUs)),
+         variance = log10(var(whole_CFUs)),
+         standard_deviation = log10(sd(whole_CFUs))) %>%
     select(-whole_CFUs) %>%
       unique()
     
@@ -146,21 +152,39 @@ inputPanel(
 
 tukey_sig <- reactive({
  CFU_data() %>%
-  ungroup() %>%
-  select(group, average_log_CFUs) %>%
+    ungroup() %>%
+    select(group, log_CFUs) %>%
     mutate(group = as.factor(group)) %>%
-  rstatix::tukey_hsd(average_log_CFUs ~ group) %>%
-  rstatix::add_xy_position(x = "group")
+    aov(log_CFUs ~ group, data = .) %>%
+    TukeyHSD() %>%
+    broom::tidy() %>%
+    separate(col = "contrast", c("group1", "group2"), sep = "-") %>%
+    filter(adj.p.value < 0.05) %>%
+    mutate(adj.p.value   = round(adj.p.value, 3)) %>%
+    mutate(star = "*")
 }) 
+
+
+
+tukey_ypos <- reactive({
+  c(max(max(abs(tukey_sig()$conf.low)), max(abs(tukey_sig()$conf.high))))
+})
+
 
 t_sig <- reactive({
   CFU_data() %>%
-  ungroup() %>%
-  t_test(average_log_CFUs ~ group) %>% #   adjust_pvalue(method = "BH") %>%
-  add_significance() %>%
-  rstatix::add_xy_position(x = "group")
+    ungroup() %>%
+    select(group, log_CFUs) %>%
+    unique() %>%
+    t_test(log_CFUs ~ group) %>% #   adjust_pvalue(method = "BH") %>%
+    add_significance() 
+   #rstatix::add_xy_position(x = "group")
   })
 
+
+t_ypos <- reactive({
+  c(max(abs(t_sig()$statistic)))
+})
 
 
 name_of_plot <- reactive({
@@ -180,24 +204,24 @@ output$dynamic <- renderUI({
 
 #  no stats
 output$plot <- renderPlot({
-  ggline(x = "group", y = "average_log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
-       font.label = list(size = 30, face = "plain")) +
+  ggbarplot(x = "group", y = "log_CFUs", fill = "group", alpha = 0.5, data = CFU_data(),
+       font.label = list(size = 30, face = "plain"), add = c("mean_se")) +
   ggtitle(paste("No stats", name_of_plot()))
 })
 
 # t-test
 output$t_plot <- renderPlot({
-  ggline(x = "group", y = "average_log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
-       font.label = list(size = 30, face = "plain")) +
-      stat_pvalue_manual(data = t_sig(), hide.ns = TRUE) +
+  ggbarplot(x = "group", y = "log_CFUs", fill = "group", alpha = 0.5, data = CFU_data(),
+       font.label = list(size = 30, face = "plain"), add = c("mean_se")) +
+      stat_pvalue_manual(data = t_sig(), hide.ns = TRUE, y.position = t_ypos(), step.increase = 0.1) +
     ggtitle(paste("T-test", name_of_plot()))
 })
 
 # Anova and Tukey HSD
 output$anova_plot <- renderPlot({
-  ggline(x = "group", y = "average_log_CFUs", color = "group", alpha = 0.5, data = CFU_data(),
-       font.label = list(size = 30, face = "plain")) +
-  stat_pvalue_manual(data = tukey_sig(), hide.ns = TRUE) +
+  ggbarplot(x = "group", y = "log_CFUs", fill = "group", alpha = 0.5, data = CFU_data(),
+       font.label = list(size = 30, face = "plain"), add = c("mean_se")) +
+  stat_pvalue_manual(data = tukey_sig(), label = "star", hide.ns = TRUE, y.position = tukey_ypos(), step.increase = 0.1) +
   ggtitle(paste("Anova and Tukey", name_of_plot()))
 })
 ```
